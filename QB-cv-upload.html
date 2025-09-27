@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Your CV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #06C755;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div id="app" class="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-md m-4">
+        
+        <div id="loading-view" class="text-center">
+             <div class="spinner mx-auto"></div>
+             <p class="mt-4 text-gray-600">กำลังเตรียมข้อมูล...</p>
+        </div>
+        
+        <div id="upload-view" class="hidden">
+            <h1 class="text-2xl font-bold text-center text-gray-800">อัปโหลด CV ของคุณ</h1>
+            <p class="text-center text-gray-500">กรุณาเลือกไฟล์ PDF หรือ DOCX</p>
+            
+            <form id="uploadForm" class="space-y-6">
+                <div>
+                    <label for="cvFile" class="block mb-2 text-sm font-medium text-gray-700">เลือกไฟล์</label>
+                    <input type="file" id="cvFile" name="cvFile" accept=".pdf,.doc,.docx" required
+                           class="block w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 cursor-pointer focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                </div>
+                <button type="submit" id="submitBtn" class="w-full px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400">
+                    <span id="btn-text">อัปโหลด</span>
+                    <div id="btn-spinner" class="spinner mx-auto hidden" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                </button>
+            </form>
+        </div>
+
+        <div id="message-view" class="hidden text-center p-4 rounded-md">
+            <h2 id="message-title" class="text-xl font-semibold"></h2>
+            <p id="message-text" class="mt-2"></p>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // --- CONFIGURATION ---
+            // !! ACTION REQUIRED !!
+            // 1. Replace with your LIFF ID from the LINE Developers Console
+            const LIFF_ID = "YOUR_LIFF_ID"; 
+            // 2. This URL should be correct from your previous step
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDpVs18YZlfvXYfcemKl560b9MmJylvT-wt6k3ZGRNbNz2jRKvzg2E8ZkeAG2W7PtHpQ/exec";
+
+            const loadingView = document.getElementById('loading-view');
+            const uploadView = document.getElementById('upload-view');
+            const messageView = document.getElementById('message-view');
+            const messageTitle = document.getElementById('message-title');
+            const messageText = document.getElementById('message-text');
+            const uploadForm = document.getElementById('uploadForm');
+            const cvFileInput = document.getElementById('cvFile');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btn-text');
+            const btnSpinner = document.getElementById('btn-spinner');
+
+            let userId = null;
+
+            function showMessage(type, title, text) {
+                uploadView.classList.add('hidden');
+                loadingView.classList.add('hidden');
+                messageView.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+                if (type === 'success') {
+                    messageView.classList.add('bg-green-100', 'text-green-800');
+                } else {
+                    messageView.classList.add('bg-red-100', 'text-red-800');
+                }
+                messageTitle.textContent = title;
+                messageText.textContent = text;
+            }
+
+            // FIX: Check if the LIFF ID is still a placeholder
+            if (LIFF_ID === "YOUR_LIFF_ID" || !LIFF_ID) {
+                showMessage('error', 'ตั้งค่าไม่สมบูรณ์', 'กรุณาใส่ LIFF ID ที่ถูกต้องในไฟล์ liff-upload.html');
+                return; // Stop the script execution
+            }
+
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                const profile = await liff.getProfile();
+                userId = profile.userId;
+                loadingView.classList.add('hidden');
+                uploadView.classList.remove('hidden');
+            } catch (err) {
+                showMessage('error', 'เกิดข้อผิดพลาด', `ไม่สามารถเริ่มต้น LIFF ได้: ${err.message}. กรุณาตรวจสอบ LIFF ID ของคุณ`);
+                console.error(err);
+            }
+
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!cvFileInput.files || cvFileInput.files.length === 0) {
+                    showMessage('error', 'เกิดข้อผิดพลาด', 'กรุณาเลือกไฟล์ก่อนกดอัปโหลด');
+                    return;
+                }
+                if (!userId) {
+                     showMessage('error', 'เกิดข้อผิดพลาด', 'ไม่พบข้อมูลผู้ใช้ LINE กรุณาลองใหม่อีกครั้ง');
+                     return;
+                }
+
+                submitBtn.disabled = true;
+                btnText.classList.add('hidden');
+                btnSpinner.classList.remove('hidden');
+
+                const file = cvFileInput.files[0];
+                const reader = new FileReader();
+
+                reader.onload = async (event) => {
+                    const fileData = event.target.result;
+                    
+                    const payload = {
+                        userId: userId,
+                        fileName: file.name,
+                        mimeType: file.type,
+                        file: fileData // base64 string
+                    };
+
+                    try {
+                        const response = await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            body: JSON.stringify(payload),
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+                        
+                        const result = await response.json();
+
+                        if (result.status === "success") {
+                            showMessage('success', 'อัปโหลดสำเร็จ!', 'เราได้รับ CV ของคุณแล้ว และจะแจ้งผลการจับคู่งานให้ทราบเร็วๆ นี้');
+                            setTimeout(() => {
+                                liff.closeWindow();
+                            }, 3000);
+                        } else {
+                           throw new Error(result.message || 'Unknown error from server.');
+                        }
+                    } catch (err) {
+                        showMessage('error', 'อัปโหลดไม่สำเร็จ', `เกิดข้อผิดพลาด: ${err.message}`);
+                    } finally {
+                        submitBtn.disabled = false;
+                        btnText.classList.remove('hidden');
+                        btnSpinner.classList.add('hidden');
+                    }
+                };
+
+                reader.onerror = () => {
+                     showMessage('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้');
+                     submitBtn.disabled = false;
+                     btnText.classList.remove('hidden');
+                     btnSpinner.classList.add('hidden');
+                };
+                
+                reader.readAsDataURL(file); // Read file as Base64
+            });
+        });
+    </script>
+</body>
+</html>
+
