@@ -61,9 +61,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             // --- CONFIGURATION ---
-            // !! ACTION REQUIRED !!
-            // 1. Replace with your LIFF ID from the LINE Developers Console
-            const LIFF_ID = "YOUR_LIFF_ID"; 
+            // 1. LIFF ID has been updated with your actual ID.
+            const LIFF_ID = "2008189228-rqoJl24o"; 
             // 2. This URL should be correct from your previous step
             const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDpVs18YZlfvXYfcemKl560b9MmJylvT-wt6k3ZGRNbNz2jRKvzg2E8ZkeAG2W7PtHpQ/exec";
 
@@ -93,7 +92,6 @@
                 messageText.textContent = text;
             }
 
-            // FIX: Check if the LIFF ID is still a placeholder
             if (LIFF_ID === "YOUR_LIFF_ID" || !LIFF_ID) {
                 showMessage('error', 'ตั้งค่าไม่สมบูรณ์', 'กรุณาใส่ LIFF ID ที่ถูกต้องในไฟล์ liff-upload.html');
                 return; // Stop the script execution
